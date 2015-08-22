@@ -3,9 +3,9 @@ GO_BUILDFLAGS = -v
 GO_TESTFLAGS = -cover
 
 GO_BUILDDIR = ./build
-GO_SRCDIRS = cmd
+GO_SRCDIRS = cmd lib
 GO_PACKAGE_PREFIX = github.com/DirtyHairy/csync
-GO_PACKAGES = cmd/csync
+GO_PACKAGES = cmd/csync lib/storage lib/storage/local
 GO_DEPENDENCIES =
 
 GIT = git
@@ -42,7 +42,7 @@ $(GO_BUILDDIR):
 	    do \
 	    	ln -s `pwd`/$$srcdir ./$(GO_BUILDDIR)/src/$(GO_PACKAGE_PREFIX)/$$srcdir; \
 	    done
-	GOPATH=`pwd`/$(GO_BUILDDIR) test -n "$(GO_DEPENDENCIES)" && $(GO) get $(GO_DEPENDENCIES)
+	if test -n "$(GO_DEPENDENCIES)"; then GOPATH=`pwd`/$(GO_BUILDDIR) $(GO) get $(GO_DEPENDENCIES); fi
 
 clean:
 	-rm -fr $(GARBAGE)
