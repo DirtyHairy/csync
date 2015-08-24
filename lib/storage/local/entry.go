@@ -26,6 +26,10 @@ func (e *entry) Mtime() time.Time {
 	return e.fileInfo.ModTime()
 }
 
+func (e *entry) Remove() error {
+	return os.RemoveAll(e.realPath())
+}
+
 func (e *entry) realPath() string {
 	return filepath.Join(e.prefix, e.path)
 }

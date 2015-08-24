@@ -559,3 +559,83 @@ func TestSetMtime(t *testing.T) {
 		t.Fatalf("mtimes differ by at least one second; expected %v, got %v", a.Mtime(), aNew.Mtime())
 	}
 }
+
+func TestRemoveFile(t *testing.T) {
+	root, err := getTempFSRoot()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := root.CreateFile("hanni")
+
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	if err := file.Close(); err != nil {
+		t.Fatalf("failed to close file: %v", err)
+	}
+
+	if err := file.Entry().Remove(); err != nil {
+		t.Fatalf("failed to remove file: %v", err)
+	}
+
+	entry, err := root.Stat("hanni")
+
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+
+	if entry != nil {
+		t.Fatalf("file could not be removed")
+	}
+}
+
+func TestRemoveDir(t *testing.T) {
+	root, err := getTempFSRoot()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	directory, err := root.Mkdir("/hanni/nanni")
+
+	if err != nil {
+		t.Fatalf("unable to create dir: %v", err)
+	}
+
+	file, err := directory.CreateFile("fanni")
+
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	if err := file.Close(); err != nil {
+		t.Fatalf("failed to close file: %v", err)
+	}
+
+	if err := directory.Close(); err != nil {
+		t.Fatalf("failed to close dir: %v", err)
+	}
+
+	entry, err := root.Stat("hanni")
+
+	if err != nil {
+		t.Fatalf("failed to stat new directory: %v", err)
+	}
+
+	if err := entry.Remove(); err != nil {
+		t.Fatalf("failed to remove directory: %v", err)
+	}
+
+	entry, err = root.Stat("hanni")
+
+	if err != nil {
+		t.Fatalf("final stat failed: %v", err)
+	}
+
+	if entry != nil {
+		t.Fatalf("directory could not be removed")
+	}
+}

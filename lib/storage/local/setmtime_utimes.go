@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// This implementation should work for all systems that implement the utimes syscall
 func (e *entry) SetMtime(mtime time.Time) error {
 	tvMtime := syscall.NsecToTimeval(mtime.UnixNano())
 	tvAtime := syscall.NsecToTimeval(time.Now().UnixNano())

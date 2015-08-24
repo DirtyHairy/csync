@@ -9,4 +9,6 @@ type Entry interface {
 	Path() string
 	Mtime() time.Time
 	SetMtime(time.Time) error
+
+	Remove() error
 }
