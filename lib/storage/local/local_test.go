@@ -12,13 +12,27 @@ import (
 	"github.com/DirtyHairy/csync/lib/storage"
 )
 
-func getFSInstance() storage.Directory {
-	fs, _ := NewLocalFS("./test_artifacts")
+func getFSInstace() storage.StorageProvider {
+	fs, err := NewLocalFS("./test_artifacts")
+
+	if err != nil {
+		panic(err)
+	}
 
 	return fs
 }
 
-func getTempFSInstance() (storage.Directory, error) {
+func getFSRoot() storage.Directory {
+	root, err := getFSInstace().Root()
+
+	if err != nil {
+		panic(err)
+	}
+
+	return root
+}
+
+func getTempFSInstance() (storage.StorageProvider, error) {
 	path, err := ioutil.TempDir("", "csync_test")
 
 	if err != nil {
@@ -32,6 +46,22 @@ func getTempFSInstance() (storage.Directory, error) {
 	}
 
 	return fs, nil
+}
+
+func getTempFSRoot() (storage.Directory, error) {
+	fs, err := getTempFSInstance()
+
+	if err != nil {
+		return nil, err
+	}
+
+	root, err := fs.Root()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return root, nil
 }
 
 func destroyTempFS(fs storage.Directory) error {
@@ -109,7 +139,7 @@ func TestInstantiation(t *testing.T) {
 }
 
 func TestDirectoryListing(t *testing.T) {
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	entries, err := checkDirectoryContents(fs, expectedRootEntries())
 
@@ -131,7 +161,7 @@ func TestDirectoryListing(t *testing.T) {
 func TestStat(t *testing.T) {
 	var err error
 
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	foo, err := fs.Stat("foo")
 
@@ -145,10 +175,14 @@ func TestStat(t *testing.T) {
 		t.Fatalf("failed to stat 'a': %v", err)
 	}
 
-	_, err = fs.Stat("huppe")
+	huppe, err := fs.Stat("huppe")
 
 	if err != nil {
-		t.Fatalf("stating 'huppe' should fail")
+		t.Fatalf("stating 'huppe' failed: %v", err)
+	}
+
+	if huppe != nil {
+		t.Fatalf("stating huppe should return nil")
 	}
 
 	var ok bool
@@ -163,7 +197,7 @@ func TestStat(t *testing.T) {
 }
 
 func TestNestedStat(t *testing.T) {
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	_, err := fs.Stat("foo/bar")
 
@@ -173,7 +207,7 @@ func TestNestedStat(t *testing.T) {
 }
 
 func TestFileNameAndPath(t *testing.T) {
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	bar, _ := fs.Stat("foo/bar")
 
@@ -187,7 +221,7 @@ func TestFileNameAndPath(t *testing.T) {
 }
 
 func TestDirNameAndPath(t *testing.T) {
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	hanni, _ := fs.Stat("foo/hanni")
 
@@ -203,7 +237,7 @@ func TestDirNameAndPath(t *testing.T) {
 func TestDirRecursion(t *testing.T) {
 	var err error
 
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	foo, _ := fs.Stat("foo")
 
@@ -223,7 +257,7 @@ func TestDirRecursion(t *testing.T) {
 func TestFileRead(t *testing.T) {
 	var err error
 
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	bar, _ := fs.Stat("foo/bar")
 
@@ -287,7 +321,7 @@ func TestFileRead(t *testing.T) {
 func TestDirectoryRewind(t *testing.T) {
 	var err error
 
-	fs := getFSInstance()
+	fs := getFSRoot()
 
 	for i := 0; i < 5; i++ {
 		_, _ = fs.NextEntry()
@@ -414,7 +448,7 @@ func testCreateDir(fs storage.Directory, path, referencePath string) error {
 }
 
 func TestCreateFile(t *testing.T) {
-	fs, err := getTempFSInstance()
+	fs, err := getTempFSRoot()
 
 	if err != nil {
 		t.Fatal(err)
@@ -432,7 +466,7 @@ func TestCreateFile(t *testing.T) {
 }
 
 func TestCreateSingleDir(t *testing.T) {
-	fs, err := getTempFSInstance()
+	fs, err := getTempFSRoot()
 
 	if err != nil {
 		t.Fatal(err)
@@ -450,7 +484,7 @@ func TestCreateSingleDir(t *testing.T) {
 }
 
 func TestCreateNestedDir(t *testing.T) {
-	fs, err := getTempFSInstance()
+	fs, err := getTempFSRoot()
 
 	if err != nil {
 		t.Fatal(err)
@@ -472,7 +506,7 @@ func TestCreateNestedDir(t *testing.T) {
 }
 
 func TestCreateFileNestedPath(t *testing.T) {
-	fs, err := getTempFSInstance()
+	fs, err := getTempFSRoot()
 
 	if err != nil {
 		t.Fatal(err)
@@ -488,5 +522,40 @@ func TestCreateFileNestedPath(t *testing.T) {
 
 	if err := testCreateFile(directory, "hanni", "/foo/bar/hanni"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSetMtime(t *testing.T) {
+	fs := getFSRoot()
+	tempFs, err := getTempFSRoot()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a, err := fs.Stat("/a")
+
+	if err != nil {
+		t.Fatalf("unable to stat 'a': %v", err)
+	}
+
+	aNewFile, err := tempFs.CreateFile("/a")
+
+	if err != nil {
+		t.Fatalf("unable to create 'a': %v", err)
+	}
+
+	if err := aNewFile.Close(); err != nil {
+		t.Fatalf("unable to close 'a': %v", err)
+	}
+
+	aNew := aNewFile.Entry()
+
+	if err := aNew.SetMtime(a.Mtime()); err != nil {
+		t.Fatalf("failed to set mtime: %v", err)
+	}
+
+	if aNew.Mtime().Unix() != a.Mtime().Unix() {
+		t.Fatalf("mtimes differ by at least one second; expected %v, got %v", a.Mtime(), aNew.Mtime())
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/DirtyHairy/csync/lib/storage"
 )
 
-func NewLocalFS(path string) (storage.Directory, error) {
+func NewLocalFS(path string) (storage.StorageProvider, error) {
 	var err error
 
 	path, err = filepath.Abs(path)
@@ -34,11 +34,11 @@ func NewLocalFS(path string) (storage.Directory, error) {
 		return nil, err
 	}
 
-	directory, err := entry.Open()
+	root, err := entry.Open()
 
 	if err != nil {
 		return nil, err
 	}
 
-	return directory, nil
+	return &storageProvider{root.(*directory)}, nil
 }
