@@ -13,13 +13,15 @@ func (e *entry) SetMtime(mtime time.Time) error {
 	tvMtime := syscall.NsecToTimeval(mtime.UnixNano())
 	tvAtime := syscall.NsecToTimeval(time.Now().UnixNano())
 
-	err := syscall.Utimes(e.realPath(), []syscall.Timeval{tvAtime, tvMtime})
+	resolvedPath := resolveSymlink(e.realPath())
+
+	err := syscall.Utimes(resolvedPath, []syscall.Timeval{tvAtime, tvMtime})
 
 	if err != nil {
 		return err
 	}
 
-	e.fileInfo, err = os.Stat(e.realPath())
+	e.fileInfo, err = os.Stat(resolvedPath)
 
 	if err != nil {
 		return err

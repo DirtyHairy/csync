@@ -15,7 +15,7 @@ type entry struct {
 }
 
 func (e *entry) Name() string {
-	return e.fileInfo.Name()
+	return filepath.Base(e.path)
 }
 
 func (e *entry) Path() string {

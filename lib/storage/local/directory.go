@@ -34,7 +34,7 @@ func (d *directory) Stat(path string) (storage.Entry, error) {
 	}
 
 	realPath := filepath.Join(d.entry.realPath(), filepath.FromSlash(path))
-	fileInfo, err := os.Stat(realPath)
+	fileInfo, err := statLinkTarget(realPath)
 
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -83,6 +83,14 @@ func (d *directory) readSlice() error {
 		)
 
 		path := filepath.Join(d.entry.path, fi.Name())
+
+		if fi.Mode()&os.ModeSymlink != 0 {
+			fi, err = statLinkTarget(filepath.Join(d.entry.realPath(), fi.Name()))
+
+			if err != nil {
+				return err
+			}
+		}
 
 		if fi.IsDir() {
 			entry, err = newDirectoryEntry(path, d.entry.prefix, fi)

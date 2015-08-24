@@ -3,7 +3,6 @@ package local
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/DirtyHairy/csync/lib/storage"
@@ -18,7 +17,7 @@ func NewLocalFS(path string) (storage.StorageProvider, error) {
 		return nil, err
 	}
 
-	fileInfo, err := os.Stat(path)
+	fileInfo, err := statLinkTarget(path)
 
 	if err != nil {
 		return nil, err
