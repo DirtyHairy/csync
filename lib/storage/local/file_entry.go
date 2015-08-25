@@ -39,7 +39,7 @@ func (entry *fileEntry) Rename(newname string) (storage.Entry, error) {
 
 	pathDir, _ := filepath.Split(entry.Path())
 	newPath := filepath.Join(pathDir, newname)
-	newRealPath := filepath.Join(entry.prefix, newname)
+	newRealPath := filepath.Join(entry.prefix, newPath)
 
 	if err := os.Rename(entry.realPath(), newRealPath); err != nil {
 		return nil, err
