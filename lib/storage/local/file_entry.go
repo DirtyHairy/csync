@@ -1,7 +1,9 @@
 package local
 
 import (
+	"errors"
 	"os"
+	"path/filepath"
 
 	"github.com/DirtyHairy/csync/lib/storage"
 )
@@ -28,6 +30,28 @@ func (entry *fileEntry) OpenWrite() (storage.WritableFile, error) {
 	}
 
 	return newFile(entry, file), nil
+}
+
+func (entry *fileEntry) Rename(newname string) (storage.Entry, error) {
+	if len(filepath.SplitList(filepath.FromSlash(newname))) > 1 {
+		return nil, errors.New("Rename does not accept paths")
+	}
+
+	pathDir, _ := filepath.Split(entry.Path())
+	newPath := filepath.Join(pathDir, newname)
+	newRealPath := filepath.Join(entry.prefix, newname)
+
+	if err := os.Rename(entry.realPath(), newRealPath); err != nil {
+		return nil, err
+	}
+
+	fi, err := statLinkTarget(newRealPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return newFileEntry(newPath, entry.prefix, fi)
 }
 
 func newFileEntry(path, prefix string, fileInfo os.FileInfo) (*fileEntry, error) {

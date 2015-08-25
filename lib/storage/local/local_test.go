@@ -639,3 +639,87 @@ func TestRemoveDir(t *testing.T) {
 		t.Fatalf("directory could not be removed")
 	}
 }
+
+func TestRenameDir(t *testing.T) {
+	root, err := getTempFSRoot()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foo, err := root.Mkdir("foo")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := foo.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = foo.Entry().Rename("bar")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dirs := make([]storage.Entry, 0, 10)
+
+	for dir, err := root.NextEntry(); dir != nil; dir, err = root.NextEntry() {
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		dirs = append(dirs, dir)
+	}
+
+	if len(dirs) != 1 {
+		t.Fatalf("root should contain exactly one entry, found %d", len(dirs))
+	}
+
+	if dirs[0].Name() != "bar" {
+		t.Fatalf("rename failed")
+	}
+}
+
+func TestRenameFile(t *testing.T) {
+	root, err := getTempFSRoot()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foo, err := root.CreateFile("foo")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := foo.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = foo.Entry().Rename("bar")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dirs := make([]storage.Entry, 0, 10)
+
+	for dir, err := root.NextEntry(); dir != nil; dir, err = root.NextEntry() {
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		dirs = append(dirs, dir)
+	}
+
+	if len(dirs) != 1 {
+		t.Fatalf("root should contain exactly one entry, found %d", len(dirs))
+	}
+
+	if dirs[0].Name() != "bar" {
+		t.Fatalf("rename failed")
+	}
+}

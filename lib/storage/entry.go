@@ -11,4 +11,5 @@ type Entry interface {
 	SetMtime(time.Time) error
 
 	Remove() error
+	Rename(newname string) (Entry, error)
 }
