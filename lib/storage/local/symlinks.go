@@ -2,19 +2,12 @@ package local
 
 import (
 	"os"
+	"path/filepath"
 )
 
 func resolveSymlink(path string) string {
-	var err error
-
-	for err == nil {
-		var newpath string
-
-		newpath, err = os.Readlink(path)
-
-		if err == nil {
-			path = newpath
-		}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
 	}
 
 	return path
