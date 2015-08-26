@@ -7,8 +7,9 @@ import (
 )
 
 type file struct {
-	entry *fileEntry
-	file  *os.File
+	entry  *fileEntry
+	file   *os.File
+	closed bool
 }
 
 func (f *file) Entry() storage.FileEntry {
@@ -24,7 +25,19 @@ func (f *file) Write(buffer []byte) (int, error) {
 }
 
 func (f *file) Close() error {
-	return f.file.Close()
+	if f.closed {
+		return nil
+	}
+
+	err := f.file.Close()
+
+	if err != nil {
+		return err
+	}
+
+	f.closed = true
+
+	return nil
 }
 
 func newFile(entry *fileEntry, f *os.File) *file {

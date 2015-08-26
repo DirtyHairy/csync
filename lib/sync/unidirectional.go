@@ -15,6 +15,19 @@ import (
 type Unidirectional struct {
 	config Config
 	rng    *rand.Rand
+
+	from storage.Directory
+	to   storage.Directory
+
+	state int
+
+	directoryStack   []storage.Directory
+	currentDirectory storage.Directory
+	currentlySyncing storage.Entry
+
+	lastError error
+
+	events chan EventInterface
 }
 
 func (sync *Unidirectional) tempFileNameFor(entry storage.Entry) string {
@@ -35,15 +48,16 @@ func (sync *Unidirectional) tempFileNameFor(entry storage.Entry) string {
 	return "csync_temp_" + hex.EncodeToString(buffer)
 }
 
-func (sync *Unidirectional) syncFailedError(originalError error) error {
-	return errors.New(fmt.Sprintf("sync failed: %v", originalError))
+func (sync *Unidirectional) setLastErrorIfApplicable(err error) {
+	if sync.lastError == nil {
+		sync.lastError = err
+	}
 }
 
 func (sync *Unidirectional) syncFile(dirEntry storage.DirectoryEntry, entry storage.FileEntry) error {
-	to := sync.config.To
 	path := entry.Path()
 	mustSync := false
-	targetEntry, err := to.Stat(path)
+	targetEntry, err := sync.to.Stat(path)
 
 	if err != nil {
 		return err
@@ -61,7 +75,9 @@ func (sync *Unidirectional) syncFile(dirEntry storage.DirectoryEntry, entry stor
 		return nil
 	}
 
-	targetDirEntry, err := sync.config.To.Stat(dirEntry.Path())
+	sync.events <- &EventStartSyncing{entry: entry}
+
+	targetDirEntry, err := sync.to.Stat(dirEntry.Path())
 
 	if err != nil {
 		return err
@@ -84,8 +100,17 @@ func (sync *Unidirectional) syncFile(dirEntry storage.DirectoryEntry, entry stor
 	}
 
 	defer func() {
-		_ = tempFile.Close()
-		_ = tempFile.Entry().Remove()
+		entry, err := sync.to.Stat(tempFile.Entry().Path())
+
+		if err != nil {
+			sync.setLastErrorIfApplicable(err)
+			return
+		}
+
+		if entry != nil {
+			sync.setLastErrorIfApplicable(tempFile.Close())
+			sync.setLastErrorIfApplicable(tempFile.Entry().Remove())
+		}
 	}()
 
 	soureFile, err := entry.Open()
@@ -95,10 +120,8 @@ func (sync *Unidirectional) syncFile(dirEntry storage.DirectoryEntry, entry stor
 	}
 
 	defer func() {
-		_ = soureFile.Close()
+		sync.setLastErrorIfApplicable(soureFile.Close())
 	}()
-
-	fmt.Printf("copying %s to %s\n", entry.Path(), tempFile.Entry().Path())
 
 	if _, err := io.Copy(tempFile, soureFile); err != nil {
 		return err
@@ -117,14 +140,10 @@ func (sync *Unidirectional) syncFile(dirEntry storage.DirectoryEntry, entry stor
 	}
 
 	if targetEntry != nil {
-		fmt.Printf("removing %s\n", targetEntry.Path())
-
 		if err := targetEntry.Remove(); err != nil {
 			return err
 		}
 	}
-
-	fmt.Printf("replacing %s with %s\n", entry.Path(), tempFile.Entry().Path())
 
 	if _, err := tempFile.Entry().Rename(entry.Name()); err != nil {
 		return err
@@ -134,7 +153,6 @@ func (sync *Unidirectional) syncFile(dirEntry storage.DirectoryEntry, entry stor
 }
 
 func (sync *Unidirectional) syncDir(entry storage.DirectoryEntry) error {
-	to := sync.config.To
 	path := entry.Path()
 
 	var (
@@ -145,15 +163,13 @@ func (sync *Unidirectional) syncDir(entry storage.DirectoryEntry) error {
 		ok             bool
 	)
 
-	targetEntry, err = to.Stat(path)
+	targetEntry, err = sync.to.Stat(path)
 
 	if err != nil {
 		return err
 	}
 
 	if targetDirEntry, ok = targetEntry.(storage.DirectoryEntry); !ok && targetEntry != nil {
-		fmt.Printf("removing %s in target repo\n", path)
-
 		if err := targetEntry.Remove(); err != nil {
 			return err
 		}
@@ -165,76 +181,143 @@ func (sync *Unidirectional) syncDir(entry storage.DirectoryEntry) error {
 		return nil
 	}
 
-	fmt.Printf("creating directory %s\n", path)
+	sync.events <- &EventStartSyncing{entry: entry}
 
-	targetDir, err = to.Mkdir(path)
+	targetDir, err = sync.to.Mkdir(path)
 
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		targetDir.Close()
+		sync.setLastErrorIfApplicable(targetDir.Close())
 	}()
 
 	return nil
 }
 
-func (sync *Unidirectional) Execute() error {
-	directoryStack := make([]storage.Directory, 0, 10)
-	directoryStack = append(directoryStack, sync.config.From)
+func (sync *Unidirectional) iterate() (finished bool, err error) {
+	if len(sync.directoryStack) == 0 && sync.currentDirectory == nil {
+		finished = true
+		return
+	}
 
-	for len(directoryStack) > 0 {
-		dir := directoryStack[0]
-		directoryStack = directoryStack[1:]
+	if sync.currentDirectory == nil {
+		sync.currentDirectory = sync.directoryStack[0]
+		sync.directoryStack = sync.directoryStack[1:]
+	}
 
-		var (
-			err   error
-			entry storage.Entry
-		)
+	sync.currentlySyncing, err = sync.currentDirectory.NextEntry()
 
-		for entry, err = dir.NextEntry(); entry != nil; entry, err = dir.NextEntry() {
-			if err != nil {
-				return sync.syncFailedError(err)
-			}
+	if err != nil {
+		return
+	}
 
-			switch entry := entry.(type) {
+	if sync.currentlySyncing == nil {
+		err = sync.currentDirectory.Close()
+		sync.currentDirectory = nil
+		return
+	}
 
-			case storage.DirectoryEntry:
-				err := sync.syncDir(entry)
+	switch entry := sync.currentlySyncing.(type) {
 
-				if err != nil {
-					return sync.syncFailedError(err)
-				}
-
-				dir, err := entry.Open()
-
-				if err != nil {
-					return sync.syncFailedError(err)
-				}
-
-				directoryStack = append(directoryStack, dir)
-
-			case storage.FileEntry:
-				err := sync.syncFile(dir.Entry(), entry)
-
-				if err != nil {
-					return sync.syncFailedError(err)
-				}
-			}
-		}
+	case storage.DirectoryEntry:
+		err = sync.syncDir(entry)
 
 		if err != nil {
-			return sync.syncFailedError(err)
+			return
+		}
+
+		var dir storage.Directory
+		dir, err = entry.Open()
+
+		if err != nil {
+			return
+		}
+
+		sync.directoryStack = append(sync.directoryStack, dir)
+
+	case storage.FileEntry:
+		err = sync.syncFile(sync.currentDirectory.Entry(), entry)
+
+		if err != nil {
+			return
 		}
 	}
+
+	return
+}
+
+func (sync *Unidirectional) run() {
+	for true {
+		finished, err := sync.iterate()
+
+		// errors that happen during cleanup do not bubble as return values but are
+		// instead logged on the object, so we deal with all errors this way
+		sync.setLastErrorIfApplicable(err)
+
+		if finished {
+			sync.state = STATE_FINISHED
+			sync.events <- &EventSyncFinished{}
+			close(sync.events)
+			return
+		}
+
+		if sync.lastError != nil {
+			fmt.Printf("ERR %v\n", sync.lastError)
+			sync.state = STATE_ERROR
+			sync.events <- &EventError{err: sync.lastError}
+			return
+		}
+	}
+}
+
+func (sync *Unidirectional) Start() (events chan EventInterface, err error) {
+	if sync.state != STATE_NONE {
+		err = errors.New("sync already started")
+		return
+	}
+
+	sync.to, err = sync.config.To.Root()
+
+	if err != nil {
+		return
+	}
+
+	sync.from, err = sync.config.From.Root()
+
+	if err != nil {
+		_ = sync.from.Close()
+		return
+	}
+
+	sync.directoryStack = append(sync.directoryStack, sync.from)
+
+	events = make(chan EventInterface, 10)
+	sync.events = events
+
+	go sync.run()
+
+	return
+}
+
+func (sync *Unidirectional) Resume() error {
+	if sync.state != STATE_ERROR {
+		return errors.New("sync not paused")
+	}
+
+	sync.lastError = nil
+
+	go sync.run()
 
 	return nil
 }
 
 func NewUnidirectionalSync(config Config) *Unidirectional {
 	return &Unidirectional{
-		config: config,
-		rng:    rand.New(rand.NewSource(time.Now().UnixNano())),
+		config:         config,
+		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
+		state:          STATE_NONE,
+		directoryStack: make([]storage.Directory, 0, 10),
 	}
 }

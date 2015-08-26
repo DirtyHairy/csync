@@ -218,7 +218,7 @@ func (d *directory) Mkdir(path string) (storage.Directory, error) {
 
 func (d *directory) Close() error {
 	if d.closed {
-		return d.closedError()
+		return nil
 	}
 
 	err := d.Rewind()

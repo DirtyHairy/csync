@@ -5,9 +5,6 @@ import (
 )
 
 type Config struct {
-	From storage.Directory
-	To   storage.Directory
-
-	Verbose bool
-	Dryrun  bool
+	From storage.StorageProvider
+	To   storage.StorageProvider
 }

@@ -14,7 +14,7 @@ func usage() {
 	os.Exit(1)
 }
 
-func getFSRoot(path string) storage.Directory {
+func getFS(path string) storage.StorageProvider {
 	fs, err := local.NewLocalFS(path)
 
 	if err != nil {
@@ -23,13 +23,7 @@ func getFSRoot(path string) storage.Directory {
 		os.Exit(1)
 	}
 
-	root, err := fs.Root()
-
-	if err != nil {
-		panic(err)
-	}
-
-	return root
+	return fs
 }
 
 func main() {
@@ -37,19 +31,44 @@ func main() {
 		usage()
 	}
 
-	from := getFSRoot(os.Args[1])
-	to := getFSRoot(os.Args[2])
+	from := getFS(os.Args[1])
+	to := getFS(os.Args[2])
 
 	syncConfig := sync.Config{
 		From: from,
 		To:   to,
 	}
 
-	usync := sync.NewUnidirectionalSync(syncConfig)
+	syncInstance := sync.NewUnidirectionalSync(syncConfig)
 
-	if err := usync.Execute(); err != nil {
-		fmt.Printf("\nSYNC FAILED: %v\n", err)
-	} else {
-		fmt.Println("\nSYNC SUCCESS")
+	events, err := syncInstance.Start()
+
+	if err != nil {
+		panic(err)
+	}
+
+EventLoop:
+	for event := range events {
+		switch event := event.(type) {
+
+		case *sync.EventStartSyncing:
+			switch entry := event.Entry().(type) {
+
+			case storage.DirectoryEntry:
+				fmt.Printf("creating %s\n", entry.Path())
+
+			case storage.FileEntry:
+				fmt.Printf("syncing %s\n", entry.Path())
+
+			}
+
+		case *sync.EventError:
+			fmt.Printf("\nSYNC FAILED: %v\n", event.Error())
+			break EventLoop
+
+		case *sync.EventSyncFinished:
+			fmt.Println("\nSYNC SUCCESSFUL\n")
+			break EventLoop
+		}
 	}
 }
