@@ -1,50 +1,37 @@
-package main
+package push
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/DirtyHairy/csync/lib/storage"
 	"github.com/DirtyHairy/csync/lib/storage/local"
 	"github.com/DirtyHairy/csync/lib/sync"
 )
 
-func usage() {
-	fmt.Println("usage: csync repo1 repo2")
-	os.Exit(1)
-}
+func Execute(config Config) error {
+	var err error
 
-func getFS(path string) storage.StorageProvider {
-	fs, err := local.NewLocalFS(path)
+	from, err := local.NewLocalFS(config.SourceRepoId)
 
 	if err != nil {
-		fmt.Printf("unable to open %s\n", path)
-
-		os.Exit(1)
+		return err
 	}
 
-	return fs
-}
+	to, err := local.NewLocalFS(config.TargetRepoId)
 
-func main() {
-	if len(os.Args) != 3 {
-		usage()
+	if err != nil {
+		return err
 	}
 
-	from := getFS(os.Args[1])
-	to := getFS(os.Args[2])
-
-	syncConfig := sync.Config{
+	syncInstance := sync.NewUnidirectionalSync(sync.Config{
 		From: from,
 		To:   to,
-	}
-
-	syncInstance := sync.NewUnidirectionalSync(syncConfig)
+	})
 
 	events, err := syncInstance.Start()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 EventLoop:
@@ -71,4 +58,6 @@ EventLoop:
 			break EventLoop
 		}
 	}
+
+	return nil
 }

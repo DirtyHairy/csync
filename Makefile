@@ -3,9 +3,10 @@ GO_BUILDFLAGS = -v
 GO_TESTFLAGS = -cover
 
 GO_BUILDDIR = ./build
-GO_SRCDIRS = cmd lib
+GO_SRCDIRS = cli lib
 GO_PACKAGE_PREFIX = github.com/DirtyHairy/csync
-GO_PACKAGES = lib/storage lib/storage/local lib/sync cmd/csync
+GO_PACKAGES = lib lib/storage lib/storage/local lib/sync lib/cmd/push \
+	cli cli/csync
 GO_DEPENDENCIES =
 
 GIT = git
