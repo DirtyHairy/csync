@@ -1,6 +1,12 @@
 package storage
 
+import (
+	"io"
+)
+
 type Directory interface {
+	io.Closer
+
 	Entry() DirectoryEntry
 
 	Stat(path string) (Entry, error)
@@ -12,6 +18,4 @@ type Directory interface {
 	CreateFile(path string) (WritableFile, error)
 
 	Mkdir(path string) (Directory, error)
-
-	Close() error
 }

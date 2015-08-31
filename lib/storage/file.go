@@ -5,9 +5,7 @@ import (
 )
 
 type File interface {
-	io.Reader
+	io.ReadCloser
 
 	Entry() FileEntry
-
-	Close() error
 }
