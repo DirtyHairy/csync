@@ -3,16 +3,28 @@ GO_BUILDFLAGS = -v
 GO_TESTFLAGS = -cover
 
 GO_BUILDDIR = ./build
-GO_SRCDIRS = cli lib
+GO_SRCDIRS = cli lib testutils
 GO_PACKAGE_PREFIX = github.com/DirtyHairy/csync
-GO_PACKAGES = lib lib/storage lib/storage/local lib/sync lib/cmd/push \
-	cli cli/csync
-GO_DEPENDENCIES =
+GO_PACKAGES = \
+	lib \
+	lib/storage \
+	lib/storage/local \
+	lib/sync \
+	lib/environment \
+	lib/environment/config \
+	lib/cmd/push \
+	cli \
+	cli/csync \
+	testutils
+GO_DEPENDENCIES = github.com/blang/semver
+
+GO_DEBUG_MAIN = github.com/DirtyHairy/csync/cli/csync
+GO_DEBUG_BINARY = ./csync_debug
 
 GIT = git
 GIT_COMMITFLAGS = -a
 
-GARBAGE = $(GO_BUILDDIR)
+GARBAGE = $(GO_BUILDDIR) $(GO_DEBUG_BINARY)
 
 packages = $(GO_PACKAGES:%=$(GO_PACKAGE_PREFIX)/$(GO_SRCDIR)/%)
 execute_go = GOPATH=`pwd`/$(GO_BUILDDIR) $(GO) $(1) $(2) $(packages)
@@ -36,6 +48,22 @@ vet: $(GO_BUILDDIR)
 
 commit: fmt
 	$(GIT) commit $(GIT_COMMITFLAGS)
+
+godebug:
+	GOPATH="`pwd`/$(GO_BUILDDIR):$$GOPATH" \
+		godebug build \
+		-instrument `for i in $(packages); do echo -n $$i,; done` \
+		-o $(GO_DEBUG_BINARY) $(GO_DEBUG_MAIN)
+
+godebug_run: godebug
+	$(GO_DEBUG_BINARY)
+
+godebug_test:
+	@if test -z "$(PKG)"; then echo you need to set PKG to the package to test; exit 1; fi
+	GOPATH="`pwd`/$(GO_BUILDDIR):$$GOPATH" \
+		godebug test \
+		-instrument `for i in $(packages); do echo -n $$i,; done` \
+		$(GO_PACKAGE_PREFIX)/$(PKG)
 
 $(GO_BUILDDIR):
 	mkdir -p ./$(GO_BUILDDIR)/src/$(GO_PACKAGE_PREFIX)

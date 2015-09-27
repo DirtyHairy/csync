@@ -54,7 +54,7 @@ EventLoop:
 			break EventLoop
 
 		case *sync.EventSyncFinished:
-			fmt.Println("\nSYNC SUCCESSFUL\n")
+			fmt.Printf("\nSYNC SUCCESSFUL\n")
 			break EventLoop
 		}
 	}

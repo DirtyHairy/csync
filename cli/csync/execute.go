@@ -9,9 +9,40 @@ import (
 	"github.com/DirtyHairy/csync/cli/csync/push"
 	"github.com/DirtyHairy/csync/cli/csync/repo"
 	"github.com/DirtyHairy/csync/lib"
+	"github.com/DirtyHairy/csync/lib/environment"
 )
 
+func bootstrap() environment.MutableEnvironment {
+	var err error
+
+	env := environment.New()
+	lib.Bootstrap(env)
+
+	err = env.Load()
+
+	if err == nil {
+		err = env.Save()
+	}
+
+	if err != nil {
+		fmt.Printf("reading/creating the config failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	return env
+}
+
 func Execute(name string, arguments []string) error {
+	var err error
+
+	env := bootstrap()
+
+	defer func() {
+		if err := env.Save(); err != nil {
+			panic(err)
+		}
+	}()
+
 	flags := flag.NewFlagSet(name, flag.ExitOnError)
 
 	commands := []cli.Command{
@@ -42,11 +73,11 @@ func Execute(name string, arguments []string) error {
 	flags.Parse(arguments)
 
 	if showVersion {
-		fmt.Printf("csync version %s\n", lib.VERSION)
+		fmt.Printf("csync version %s\n", env.Version())
 		return nil
 	}
 
-	err := cli.DispatchCommand(commands, flags.Args(), name)
+	err = cli.DispatchCommand(commands, flags.Args(), name)
 	if _, ok := err.(cli.CommandDispatchError); ok && err != nil {
 		fmt.Printf("ERROR: %v\n", err)
 		usage.Print()

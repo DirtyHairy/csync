@@ -64,16 +64,16 @@ func getTempFSRoot() (storage.Directory, error) {
 	return root, nil
 }
 
-func destroyTempFS(fs storage.Directory) error {
+func destroyTempFS(fs storage.Directory) {
 	directory, ok := fs.(*directory)
 
 	if !ok {
-		return errors.New("no an instance of directory")
+		panic("no an instance of directory")
 	}
 
-	err := os.RemoveAll(directory.Entry().(*directoryEntry).realPath())
-
-	return err
+	if err := os.RemoveAll(directory.Entry().(*directoryEntry).realPath()); err != nil {
+		panic(err)
+	}
 }
 
 func checkDirectoryContents(directory storage.Directory, expectedContents []string) (entries map[string]storage.Entry, e error) {
@@ -244,7 +244,7 @@ func TestDirRecursion(t *testing.T) {
 	directory, err := foo.(storage.DirectoryEntry).Open()
 
 	if err != nil {
-		t.Fatalf("failed to open directory: %v")
+		t.Fatalf("failed to open directory: %v", err)
 	}
 
 	_, err = checkDirectoryContents(directory, []string{"bar", "hanni"})
@@ -290,7 +290,7 @@ func TestFileRead(t *testing.T) {
 	}
 
 	if bytesRead != 0 {
-		t.Fatalf("bytes read: expected 0, got %d")
+		t.Fatalf("bytes read: expected 0, got %d", bytesRead)
 	}
 
 	err = file.Close()
@@ -367,7 +367,7 @@ func testCreateFile(target storage.Directory, path, referencePath string) error 
 	}
 
 	if actualPath := file.Entry().Path(); actualPath != referencePath {
-		return errors.New(fmt.Sprintf("new file has wrong path: expected %s, got %s", actualPath))
+		return errors.New(fmt.Sprintf("new file has wrong path: expected %s, got %s", referencePath, actualPath))
 	}
 
 	err = file.Close()
@@ -383,7 +383,7 @@ func testCreateFile(target storage.Directory, path, referencePath string) error 
 	}
 
 	if actualPath := fileEntry.Path(); actualPath != referencePath {
-		return errors.New(fmt.Sprintf("new file has wrong path after statting: expected %s, got %s", actualPath))
+		return errors.New(fmt.Sprintf("new file has wrong path after statting: expected %s, got %s", referencePath, actualPath))
 	}
 
 	fileRO, err := fileEntry.(storage.FileEntry).Open()
@@ -454,11 +454,7 @@ func TestCreateFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		if err := destroyTempFS(fs); err != nil {
-			panic(err)
-		}
-	}()
+	defer destroyTempFS(fs)
 
 	if err := testCreateFile(fs, "foo", "/foo"); err != nil {
 		t.Fatal(err)
@@ -472,11 +468,7 @@ func TestCreateSingleDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		if err := destroyTempFS(fs); err != nil {
-			panic(err)
-		}
-	}()
+	defer destroyTempFS(fs)
 
 	if err := testCreateDir(fs, "foo", "/foo"); err != nil {
 		t.Fatal(err)
@@ -490,11 +482,7 @@ func TestCreateNestedDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		if err := destroyTempFS(fs); err != nil {
-			panic(err)
-		}
-	}()
+	defer destroyTempFS(fs)
 
 	if err := testCreateDir(fs, "/foo/bar/baz", "/foo/bar/baz"); err != nil {
 		t.Fatal(err)
@@ -512,11 +500,7 @@ func TestCreateFileNestedPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		if err := destroyTempFS(fs); err != nil {
-			panic(err)
-		}
-	}()
+	defer destroyTempFS(fs)
 
 	directory, _ := fs.Mkdir("foo/bar")
 
@@ -532,6 +516,8 @@ func TestSetMtime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	defer destroyTempFS(tempFs)
 
 	a, err := fs.Stat("/a")
 
@@ -567,6 +553,8 @@ func TestRemoveFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	defer destroyTempFS(root)
+
 	file, err := root.CreateFile("hanni")
 
 	if err != nil {
@@ -598,6 +586,8 @@ func TestRemoveDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	defer destroyTempFS(root)
 
 	directory, err := root.Mkdir("/hanni/nanni")
 
@@ -647,6 +637,8 @@ func TestRenameDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	defer destroyTempFS(root)
+
 	foo, err := root.Mkdir("foo")
 
 	if err != nil {
@@ -688,6 +680,8 @@ func TestRenameFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	defer destroyTempFS(root)
 
 	foo, err := root.CreateFile("foo")
 
