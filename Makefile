@@ -6,7 +6,6 @@ GO_BUILDDIR = ./build
 GO_SRCDIRS = cli lib testutils
 GO_PACKAGE_PREFIX = github.com/DirtyHairy/csync
 GO_PACKAGES = \
-	lib \
 	lib/storage \
 	lib/storage/local \
 	lib/sync \

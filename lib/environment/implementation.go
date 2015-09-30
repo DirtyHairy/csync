@@ -1,11 +1,15 @@
 package environment
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/DirtyHairy/csync/lib/environment/config"
 	"github.com/blang/semver"
 )
+
+const CSYNC_VERSION = "0.0.1"
 
 type environment struct {
 	version semver.Version
@@ -29,11 +33,23 @@ func (e *environment) Load() error {
 
 	if err != nil && os.IsNotExist(err) {
 		e.dirty = true
-	} else if err != nil {
+		return nil
+	}
+
+	if err != nil {
 		return err
 	}
 
-	_ = config
+	loadedVersion := config.CsyncVersion()
+
+	if loadedVersion.LT(e.version) {
+		e.dirty = true
+	}
+
+	if loadedVersion.GT(e.version) {
+		return errors.New(fmt.Sprintf(
+			"config was written by newer csync version (%s vs. %s)", loadedVersion, e.version))
+	}
 
 	return nil
 }
@@ -58,5 +74,7 @@ func (e *environment) Save() error {
 }
 
 func New() MutableEnvironment {
-	return &environment{}
+	return &environment{
+		version: semver.MustParse(CSYNC_VERSION),
+	}
 }

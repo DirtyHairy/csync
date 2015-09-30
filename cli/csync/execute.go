@@ -8,7 +8,6 @@ import (
 	"github.com/DirtyHairy/csync/cli"
 	"github.com/DirtyHairy/csync/cli/csync/push"
 	"github.com/DirtyHairy/csync/cli/csync/repo"
-	"github.com/DirtyHairy/csync/lib"
 	"github.com/DirtyHairy/csync/lib/environment"
 )
 
@@ -16,8 +15,6 @@ func bootstrap() environment.MutableEnvironment {
 	var err error
 
 	env := environment.New()
-	lib.Bootstrap(env)
-
 	err = env.Load()
 
 	if err == nil {
