@@ -1,13 +1,12 @@
 package config
 
-import (
-	"github.com/blang/semver"
-)
-
 type Config interface {
-	CsyncVersion() semver.Version
+	Type() string
+	Path() string
 }
 
 type MutableConfig interface {
 	Config
+
+	SetPath(string)
 }

@@ -62,7 +62,7 @@ func (e *environment) Save() error {
 	locator := config.NewLocator()
 	manager := config.NewManager(locator)
 
-	config := config.NewConfig(e.Version())
+	config := config.NewMutableConfig(e.Version())
 	err := manager.Save(config)
 
 	if err != nil {

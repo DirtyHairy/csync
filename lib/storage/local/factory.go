@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/DirtyHairy/csync/lib/storage"
+	"github.com/DirtyHairy/csync/lib/storage/local/config"
 )
 
 func NewLocalFS(path string) (storage.StorageProvider, error) {
@@ -40,4 +41,8 @@ func NewLocalFS(path string) (storage.StorageProvider, error) {
 	}
 
 	return &storageProvider{root.(*directory)}, nil
+}
+
+func FromConfig(cfg config.Config) (storage.StorageProvider, error) {
+	return NewLocalFS(cfg.Path())
 }

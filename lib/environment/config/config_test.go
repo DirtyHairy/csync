@@ -36,7 +36,7 @@ func TestMarshall(t *testing.T) {
 
 	var err error
 
-	config := NewConfig(version)
+	config := NewMutableConfig(version)
 	jsonData, err := marshalConfig(config)
 
 	w.BailIfError(err)
@@ -71,7 +71,7 @@ func TestSave(t *testing.T) {
 	defer locator.Destroy()
 
 	manager := NewManager(locator)
-	err = manager.Save(NewConfig(version))
+	err = manager.Save(NewMutableConfig(version))
 
 	w.BailIfErrorf(err, "saving the config failed: %v", err)
 

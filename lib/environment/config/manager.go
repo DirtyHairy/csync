@@ -36,7 +36,7 @@ func unmarshalConfig(jsonData []byte) (config Config, err error) {
 		return
 	}
 
-	config = emptyConfigForVersion(*proto_config.CsyncVersion)
+	config = newConfig(*proto_config.CsyncVersion)
 
 	err = json.Unmarshal(jsonData, &config)
 

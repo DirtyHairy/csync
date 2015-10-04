@@ -7,7 +7,11 @@ GO_SRCDIRS = cli lib testutils
 GO_PACKAGE_PREFIX = github.com/DirtyHairy/csync
 GO_PACKAGES = \
 	lib/storage \
+	lib/storage/types \
+	lib/storage/factory \
+	lib/storage/config \
 	lib/storage/local \
+	lib/storage/local/config \
 	lib/sync \
 	lib/environment \
 	lib/environment/config \

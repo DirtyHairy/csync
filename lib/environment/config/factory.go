@@ -4,12 +4,12 @@ import (
 	"github.com/blang/semver"
 )
 
-func NewConfig(csyncVersion semver.Version) Config {
+func NewMutableConfig(csyncVersion semver.Version) MutableConfig {
 	return &config_v1{
 		Version: csyncVersion,
 	}
 }
 
-func emptyConfigForVersion(CsyncVersion semver.Version) Config {
+func newConfig(CsyncVersion semver.Version) Config {
 	return new(config_v1)
 }
