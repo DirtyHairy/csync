@@ -1,0 +1,97 @@
+package repository
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/DirtyHairy/csync/lib/repository/local_config"
+	"github.com/DirtyHairy/csync/lib/storage/local"
+	"github.com/DirtyHairy/csync/testutils"
+	"github.com/blang/semver"
+)
+
+func TestUnmarshalWithLocalFS(t *testing.T) {
+	w := testutils.Wrap(t)
+
+	var err error
+
+	version := semver.MustParse("0.0.1")
+	jsonData := []byte(`{
+        "plain": true,
+        "storage": {
+            "type": "local",
+            "path": "."
+        }
+    }`)
+
+	cfg := local_config.NewConfig(version)
+
+	err = json.Unmarshal(jsonData, &cfg)
+	w.BailIfErrorf(err, "deserialization failed: %v", err)
+
+	repository, err := CreateFromConfig(cfg)
+	w.BailIfErrorf(err, "instatiation failed: %v", err)
+
+	err = repository.Initialize()
+	w.BailIfErrorf(err, "initialization failed: %v", err)
+}
+
+func TestUnmarshalWithNonplainRepo(t *testing.T) {
+	w := testutils.Wrap(t)
+
+	var err error
+
+	version := semver.MustParse("0.0.1")
+	jsonData := []byte(`{
+        "plain": false,
+        "storage": {
+            "type": "local",
+            "path": "."
+        }
+    }`)
+
+	cfg := local_config.NewConfig(version)
+
+	err = json.Unmarshal(jsonData, &cfg)
+	w.BailIfErrorf(err, "deserialization failed: %v", err)
+
+	_, err = CreateFromConfig(cfg)
+	w.ShouldFailf(err, "instatiation should currently fail")
+}
+
+func TestMarshal(t *testing.T) {
+	w := testutils.Wrap(t)
+
+	var err error
+
+	cwd, err := os.Getwd()
+	w.BailIfError(err)
+
+	expectedJson := []byte(fmt.Sprintf(`
+        {
+            "plain": true,
+            "storage": {
+                "type": "local",
+                "path": "%s"
+            }
+        }
+    `, cwd))
+
+	storage, err := local.NewLocalFS(".")
+	w.BailIfErrorf(err, "creating the storage failed: %v", err)
+
+	repo := NewRepository(true, storage)
+	cfg := repo.Marshal()
+
+	jsonData, err := json.MarshalIndent(cfg, "", "   ")
+	w.BailIfErrorf(err, "serialization failed: %v", err)
+
+	isEqual, err := testutils.JsonEqual(jsonData, expectedJson)
+	w.BailIfErrorf(err, "deserialization failed: %v", err)
+
+	if !isEqual {
+		t.Fatalf("JSON did not match: %s vs. %s", jsonData, expectedJson)
+	}
+}

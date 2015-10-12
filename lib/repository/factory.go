@@ -20,10 +20,6 @@ func CreateFromConfig(cfg local_config.Config) (repo Repository, err error) {
 		return
 	}
 
-	repo = &repository{
-		underlyingStorage: underlyingStorage,
-		plain:             cfg.Plain(),
-	}
-
+	repo = NewRepository(cfg.Plain(), underlyingStorage)
 	return
 }

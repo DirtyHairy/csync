@@ -38,3 +38,10 @@ func (r *repository) Marshal() local_config.Config {
 
 	return cfg
 }
+
+func NewRepository(plain bool, storage storage.StorageProvider) Repository {
+	return &repository{
+		plain:             plain,
+		underlyingStorage: storage,
+	}
+}
