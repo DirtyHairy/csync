@@ -12,6 +12,10 @@ GO_PACKAGES = \
 	lib/storage/config \
 	lib/storage/local \
 	lib/storage/local/config \
+	lib/repository \
+	lib/repository/registry \
+	lib/repository/local_config \
+	lib/repository/registry/config \
 	lib/sync \
 	lib/environment \
 	lib/environment/config \

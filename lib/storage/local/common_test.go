@@ -91,7 +91,7 @@ func checkDirectoryContents(directory storage.Directory, expectedContents []stri
 	}
 
 	if len(contents) != len(expectedContents) {
-		e = errors.New(fmt.Sprintf("expected %s dir entries, got %d instead", len(expectedContents), len(contents)))
+		e = errors.New(fmt.Sprintf("expected %d dir entries, got %d instead", len(expectedContents), len(contents)))
 		return
 	}
 
