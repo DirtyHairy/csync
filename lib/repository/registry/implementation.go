@@ -29,6 +29,10 @@ func (r registry) Keys() []string {
 	return keys
 }
 
+func (r registry) Size() int {
+	return len(r)
+}
+
 func (r registry) Get(key string) repository.Repository {
 	return r[key]
 }

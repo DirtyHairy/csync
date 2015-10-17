@@ -9,6 +9,7 @@ type Registry interface {
 	All() map[string]repository.Repository
 	Keys() []string
 	Get(key string) repository.Repository
+	Size() int
 
 	Marshal() config.Config
 }
